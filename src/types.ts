@@ -1,3 +1,5 @@
+import type { Edge, Node } from '@xyflow/react';
+
 export type NodeType = 'pattern' | 'transform' | 'fx' | 'output';
 
 export interface NodeData extends Record<string, unknown> {
@@ -10,8 +12,8 @@ export interface NodeData extends Record<string, unknown> {
 }
 
 export interface PatchData {
-  nodes: unknown[];
-  edges: unknown[];
+  nodes?: Node<NodeData>[];
+  edges?: Edge[];
   name?: string;
   created?: string;
 }

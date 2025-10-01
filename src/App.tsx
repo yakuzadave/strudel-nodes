@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   ReactFlow,
   Background,
@@ -22,13 +22,116 @@ import { Toolbar } from './components/Toolbar';
 import { NodePalette } from './components/NodePalette';
 import { useStrudelEngine } from './hooks/useStrudelEngine';
 import type { NodeData, PatchData } from './types';
+import { SequencerContext } from './SequencerContext';
 
 function App() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<NodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [darkMode, setDarkMode] = useState(true);
   const [snapToGrid, setSnapToGrid] = useState(true);
-  const { isPlaying, isLoading, play, stop } = useStrudelEngine();
+  const { isPlaying, isLoading, play, stop, evaluatePattern } = useStrudelEngine();
+
+  const previewRequestIdRef = useRef(0);
+  const activePreviewRef = useRef<{ play?: () => void; stop?: () => void } | null>(null);
+  const previewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [playingNodes, setPlayingNodes] = useState<Set<string>>(new Set());
+
+  const stopPreviewTimeout = useCallback(() => {
+    if (previewTimeoutRef.current !== null) {
+      clearTimeout(previewTimeoutRef.current);
+      previewTimeoutRef.current = null;
+    }
+  }, []);
+
+  const stopActivePreview = useCallback(() => {
+    stopPreviewTimeout();
+
+    const activePreview = activePreviewRef.current;
+    if (activePreview && typeof activePreview.stop === 'function') {
+      try {
+        activePreview.stop();
+      } catch (error) {
+        console.error('Failed to stop active preview:', error);
+      }
+    }
+
+    activePreviewRef.current = null;
+    setPlayingNodes(new Set());
+  }, [stopPreviewTimeout]);
+
+  const stopAllPatterns = useCallback(() => {
+    previewRequestIdRef.current += 1;
+    stopActivePreview();
+  }, [stopActivePreview]);
+
+  useEffect(() => {
+    return () => {
+      stopAllPatterns();
+    };
+  }, [stopAllPatterns]);
+
+  const previewNode = useCallback(
+    async (nodeId: string) => {
+      const node = nodes.find((n) => n.id === nodeId);
+      const code = node?.data?.code;
+      if (!code) {
+        return;
+      }
+
+      const requestId = ++previewRequestIdRef.current;
+
+      stopActivePreview();
+
+      try {
+        const result = await evaluatePattern(code);
+
+        if (requestId !== previewRequestIdRef.current) {
+          if (result && typeof result === 'object' && 'stop' in result && typeof result.stop === 'function') {
+            try {
+              result.stop();
+            } catch (error) {
+              console.error('Failed to stop stale preview:', error);
+            }
+          }
+          return;
+        }
+
+        const playable =
+          result && typeof result === 'object' && ('play' in result || 'stop' in result)
+            ? (result as { play?: () => void; stop?: () => void })
+            : null;
+
+        activePreviewRef.current = playable;
+
+        if (playable && typeof playable.play === 'function') {
+          playable.play();
+        }
+
+        setPlayingNodes(new Set([nodeId]));
+
+        stopPreviewTimeout();
+        previewTimeoutRef.current = setTimeout(() => {
+          if (requestId !== previewRequestIdRef.current) {
+            return;
+          }
+          stopActivePreview();
+        }, 4000);
+      } catch (error) {
+        console.error('Failed to preview node:', error);
+      }
+    },
+    [nodes, evaluatePattern, stopActivePreview, stopPreviewTimeout]
+  );
+
+  const handlePlay = useCallback(() => {
+    stopAllPatterns();
+    void play();
+  }, [play, stopAllPatterns]);
+
+  const handleStop = useCallback(() => {
+    stopAllPatterns();
+    stop();
+  }, [stop, stopAllPatterns]);
 
   const nodeTypes = useMemo(
     () => ({
@@ -97,13 +200,13 @@ function App() {
       const target = e.target as HTMLInputElement;
       const file = target.files?.[0];
       if (!file) return;
-      
+
       const reader = new FileReader();
       reader.onload = (event) => {
         try {
           const patch: PatchData = JSON.parse(event.target?.result as string);
-          setNodes(patch.nodes as Node<NodeData>[] || []);
-          setEdges(patch.edges as Edge[] || []);
+          setNodes(patch.nodes ?? []);
+          setEdges(patch.edges ?? []);
         } catch (error) {
           console.error('Failed to load patch:', error);
           alert('Failed to load patch file');
@@ -121,6 +224,14 @@ function App() {
     }
   }, [setNodes, setEdges]);
 
+  const sequencerContextValue = useMemo(
+    () => ({
+      previewNode,
+      playingNodes,
+    }),
+    [previewNode, playingNodes]
+  );
+
   return (
     <div className={`app ${darkMode ? 'dark' : 'light'}`}>
       <Toolbar
@@ -128,8 +239,8 @@ function App() {
         isLoading={isLoading}
         darkMode={darkMode}
         snapToGrid={snapToGrid}
-        onPlay={play}
-        onStop={stop}
+        onPlay={handlePlay}
+        onStop={handleStop}
         onToggleDarkMode={() => setDarkMode(!darkMode)}
         onToggleSnapToGrid={() => setSnapToGrid(!snapToGrid)}
         onSave={savePatch}
@@ -139,21 +250,26 @@ function App() {
       <div className="main-content">
         <NodePalette onAddNode={addNode} />
         <div className="flow-container">
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            nodeTypes={nodeTypes}
-            snapToGrid={snapToGrid}
-            snapGrid={[15, 15]}
-            fitView
-          >
-            <Background />
-            <Controls />
-            <MiniMap />
-          </ReactFlow>
+          <SequencerContext.Provider value={sequencerContextValue}>
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onNodeDoubleClick={(_, node) => {
+                void previewNode(node.id);
+              }}
+              nodeTypes={nodeTypes}
+              snapToGrid={snapToGrid}
+              snapGrid={[15, 15]}
+              fitView
+            >
+              <Background />
+              <Controls />
+              <MiniMap />
+            </ReactFlow>
+          </SequencerContext.Provider>
         </div>
       </div>
     </div>
