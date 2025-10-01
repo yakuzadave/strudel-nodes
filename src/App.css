@@ -193,6 +193,11 @@
   font-size: 0.9rem;
 }
 
+.node.is-playing {
+  border-color: #4caf50;
+  box-shadow: 0 0 8px rgba(76, 175, 80, 0.6);
+}
+
 .dark .node {
   background: #2a2a2a;
   color: #e0e0e0;
@@ -210,6 +215,22 @@
   align-items: center;
   border-bottom: 1px solid;
   font-weight: 600;
+}
+
+.node-preview-button {
+  margin-left: auto;
+  background: #2196f3;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  padding: 0 0.35rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.node-preview-button:hover {
+  background: #1976d2;
 }
 
 .dark .node-header {

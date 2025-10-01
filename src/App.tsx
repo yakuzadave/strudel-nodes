@@ -205,8 +205,8 @@ function App() {
       reader.onload = (event) => {
         try {
           const patch: PatchData = JSON.parse(event.target?.result as string);
-          setNodes((patch.nodes as Node<NodeData>[] | undefined) ?? []);
-          setEdges((patch.edges as Edge[] | undefined) ?? []);
+          setNodes(patch.nodes ?? []);
+          setEdges(patch.edges ?? []);
         } catch (error) {
           console.error('Failed to load patch:', error);
           alert('Failed to load patch file');

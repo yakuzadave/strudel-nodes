@@ -10,33 +10,18 @@ export function FXNode({ id, data }: NodeProps) {
   const isPlaying = seq?.playingNodes.has(id) ?? false;
 
   return (
-    <div
-      className="node fx-node"
-      style={
-        isPlaying
-          ? { borderColor: '#4CAF50', boxShadow: '0 0 8px rgba(76,175,80,0.6)' }
-          : undefined
-      }
-    >
+    <div className={`node fx-node${isPlaying ? ' is-playing' : ''}`}>
       <div className="node-header">
         <span className="node-type">FX</span>
         <span className="node-label">{nodeData.label}</span>
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
             void seq?.previewNode(id);
           }}
           title="Preview effect"
-          style={{
-            marginLeft: 'auto',
-            background: '#2196F3',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            fontSize: '0.75rem',
-            padding: '0 0.35rem',
-            cursor: 'pointer',
-          }}
+          className="node-preview-button"
         >
           ▶
         </button>
