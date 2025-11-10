@@ -23,6 +23,7 @@ import { NodePalette } from './components/NodePalette';
 import { useStrudelEngine } from './hooks/useStrudelEngine';
 import type { NodeData, PatchData } from './types';
 import { SequencerContext } from './SequencerContext';
+import { createStaleRequestGuard } from './utils/staleRequestGuard';
 
 function App() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<NodeData>>([]);
@@ -31,7 +32,7 @@ function App() {
   const [snapToGrid, setSnapToGrid] = useState(true);
   const { isPlaying, isLoading, play, stop, evaluatePattern } = useStrudelEngine();
 
-  const previewRequestIdRef = useRef(0);
+  const previewGuardRef = useRef(createStaleRequestGuard());
   const activePreviewRef = useRef<{ play?: () => void; stop?: () => void } | null>(null);
   const previewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [playingNodes, setPlayingNodes] = useState<Set<string>>(new Set());
@@ -60,7 +61,7 @@ function App() {
   }, [stopPreviewTimeout]);
 
   const stopAllPatterns = useCallback(() => {
-    previewRequestIdRef.current += 1;
+    previewGuardRef.current.invalidate();
     stopActivePreview();
   }, [stopActivePreview]);
 
@@ -78,14 +79,14 @@ function App() {
         return;
       }
 
-      const requestId = ++previewRequestIdRef.current;
+      const { isStale: isStaleRequest } = previewGuardRef.current.markNext();
 
       stopActivePreview();
 
       try {
         const result = await evaluatePattern(code);
 
-        if (requestId !== previewRequestIdRef.current) {
+        if (isStaleRequest()) {
           if (result && typeof result === 'object' && 'stop' in result && typeof result.stop === 'function') {
             try {
               result.stop();
@@ -103,15 +104,30 @@ function App() {
 
         activePreviewRef.current = playable;
 
+        if (isStaleRequest()) {
+          stopActivePreview();
+          return;
+        }
+
         if (playable && typeof playable.play === 'function') {
           playable.play();
+
+          if (isStaleRequest()) {
+            stopActivePreview();
+            return;
+          }
+        }
+
+        if (isStaleRequest()) {
+          stopActivePreview();
+          return;
         }
 
         setPlayingNodes(new Set([nodeId]));
 
         stopPreviewTimeout();
         previewTimeoutRef.current = setTimeout(() => {
-          if (requestId !== previewRequestIdRef.current) {
+          if (isStaleRequest()) {
             return;
           }
           stopActivePreview();
