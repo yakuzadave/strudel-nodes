@@ -268,6 +268,7 @@ function App() {
         <div className="flow-container">
           <SequencerContext.Provider value={sequencerContextValue}>
             <ReactFlow
+              className="sequencer-flow"
               nodes={nodes}
               edges={edges}
               onNodesChange={onNodesChange}
