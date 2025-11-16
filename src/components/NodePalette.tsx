@@ -2,22 +2,42 @@ interface NodePaletteProps {
   onAddNode: (type: 'pattern' | 'transform' | 'fx' | 'output') => void;
 }
 
+const paletteItems: Array<{
+  type: 'pattern' | 'transform' | 'fx' | 'output';
+  label: string;
+  description: string;
+}> = [
+  { type: 'pattern', label: 'Pattern', description: 'Create rhythms & motifs' },
+  { type: 'transform', label: 'Transform', description: 'Stretch, chop & evolve' },
+  { type: 'fx', label: 'FX', description: 'Filter, delay & sculpt' },
+  { type: 'output', label: 'Output', description: 'Mix, pan & send' },
+];
+
 export function NodePalette({ onAddNode }: NodePaletteProps) {
   return (
-    <div className="node-palette">
-      <h3>Add Nodes</h3>
-      <button onClick={() => onAddNode('pattern')} className="palette-btn pattern">
-        Pattern
-      </button>
-      <button onClick={() => onAddNode('transform')} className="palette-btn transform">
-        Transform
-      </button>
-      <button onClick={() => onAddNode('fx')} className="palette-btn fx">
-        FX
-      </button>
-      <button onClick={() => onAddNode('output')} className="palette-btn output">
-        Output
-      </button>
-    </div>
+    <aside className="node-palette">
+      <div className="node-palette__header">
+        <div>
+          <p className="node-palette__eyebrow">NODE LIBRARY</p>
+          <h3>Assemble your patch</h3>
+        </div>
+        <p className="node-palette__hint">
+          Click nodes to add them to the canvas, then connect them together.
+        </p>
+      </div>
+      <div className="palette-grid">
+        {paletteItems.map((item) => (
+          <button
+            key={item.type}
+            onClick={() => onAddNode(item.type)}
+            className={`palette-btn ${item.type}`}
+            type="button"
+          >
+            <span className="palette-btn__label">{item.label}</span>
+            <span className="palette-btn__description">{item.description}</span>
+          </button>
+        ))}
+      </div>
+    </aside>
   );
 }
