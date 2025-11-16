@@ -141,7 +141,7 @@ body {
 }
 
 .node-palette__eyebrow {
-  letter-spacing: 0.25rem;
+  letter-spacing: 0.12rem;
   font-size: 0.7rem;
   color: var(--text-secondary);
   margin: 0;
