@@ -28,15 +28,20 @@ export const useStrudelEngine = () => {
     initStrudel();
   }, []);
 
-  const evaluatePattern = useCallback(async (code: string) => {
-    if (!replRef.current) {
-      throw new Error('Strudel not initialized');
-    }
+  const evaluatePattern = useCallback(
+    async (code: string, options?: { markPlaying?: boolean }) => {
+      if (!replRef.current) {
+        throw new Error('Strudel not initialized');
+      }
 
-    const result = await (replRef.current as { evaluate: (code: string) => Promise<unknown> }).evaluate(code);
-    setIsPlaying(true);
-    return result;
-  }, []);
+      const result = await (replRef.current as { evaluate: (code: string) => Promise<unknown> }).evaluate(code);
+      if (options?.markPlaying ?? true) {
+        setIsPlaying(true);
+      }
+      return result;
+    },
+    []
+  );
 
   const stop = useCallback(() => {
     if (!replRef.current) return;
