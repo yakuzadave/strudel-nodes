@@ -21,7 +21,9 @@ export function NodePalette({ onAddNode }: NodePaletteProps) {
           <p className="node-palette__eyebrow">NODE LIBRARY</p>
           <h3>Assemble your patch</h3>
         </div>
-        <p className="node-palette__hint">Drag nodes onto the canvas & link them together.</p>
+        <p className="node-palette__hint">
+          Click nodes to add them to the canvas, then connect them together.
+        </p>
       </div>
       <div className="palette-grid">
         {paletteItems.map((item) => (
