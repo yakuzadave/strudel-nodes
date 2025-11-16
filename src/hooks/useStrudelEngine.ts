@@ -2,12 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 // @ts-expect-error - Strudel doesn't have type definitions
 import { repl } from '@strudel/core';
 // @ts-expect-error - Strudel doesn't have type definitions
-import { getAudioContext, initAudioOnFirstClick, webaudioOutput } from '@strudel/webaudio';
+import {
+  getAudioContext,
+  initAudioOnFirstClick,
+  registerSynthSounds,
+  samples,
+  webaudioOutput,
+} from '@strudel/webaudio';
 
-type StrudelPlaybackHandle = {
-  play?: () => void;
-  stop?: () => void;
-};
+const DEFAULT_SAMPLE_MAP = 'github:tidalcycles/dirt-samples';
 
 type StrudelRepl = {
   evaluate: (code: string) => Promise<unknown>;
@@ -20,17 +23,31 @@ export const useStrudelEngine = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const replRef = useRef<StrudelRepl | null>(null);
-  const playbackRef = useRef<StrudelPlaybackHandle | null>(null);
 
   useEffect(() => {
     const initStrudel = async () => {
       try {
-        await initAudioOnFirstClick();
+        // Prepare audio context as soon as the user interacts with the page.
+        initAudioOnFirstClick().catch((error) => {
+          console.error('Failed to queue Strudel audio init on first click:', error);
+        });
+
         const strudelRepl = repl({
           defaultOutput: webaudioOutput,
           getTime: () => getAudioContext().currentTime,
         });
         replRef.current = strudelRepl;
+
+        await Promise.allSettled([
+          samples(DEFAULT_SAMPLE_MAP).catch((error) => {
+            console.error('Failed to load default Strudel samples:', error);
+            throw error;
+          }),
+          registerSynthSounds().catch((error) => {
+            console.error('Failed to register Strudel synth sounds:', error);
+            throw error;
+          }),
+        ]);
         setIsLoading(false);
       } catch (error) {
         console.error('Failed to initialize Strudel:', error);
@@ -41,59 +58,22 @@ export const useStrudelEngine = () => {
     initStrudel();
   }, []);
 
-  const stopPlayback = useCallback(() => {
-    if (!playbackRef.current) {
-      return;
-    }
-
-    const playable = playbackRef.current;
-    playbackRef.current = null;
-
-    if (playable && typeof playable.stop === 'function') {
-      try {
-        playable.stop();
-      } catch (error) {
-        console.error('Failed to stop Strudel playback:', error);
-      }
-    }
-  }, []);
-
   const evaluatePattern = useCallback(
-    async (code: string, options?: { markPlaying?: boolean; autoPlay?: boolean }) => {
+    async (code: string, options?: { markPlaying?: boolean }) => {
       if (!replRef.current) {
         throw new Error('Strudel not initialized');
       }
 
       const result = await replRef.current.evaluate(code);
-      const playable =
-        result && typeof result === 'object' && ('play' in result || 'stop' in result)
-          ? (result as StrudelPlaybackHandle)
-          : null;
-      const shouldAutoPlay = options?.autoPlay ?? true;
-      const shouldMarkPlaying = options?.markPlaying ?? true;
-
-      if (shouldAutoPlay && playable && typeof playable.play === 'function') {
-        stopPlayback();
-        try {
-          playable.play();
-          playbackRef.current = playable;
-        } catch (error) {
-          console.error('Failed to start Strudel playback:', error);
-        }
-      }
-
-      if (shouldMarkPlaying && (shouldAutoPlay ? Boolean(playable?.play) : true)) {
+      if (options?.markPlaying ?? true) {
         setIsPlaying(true);
       }
-
-      return playable ?? result;
+      return result;
     },
-    [stopPlayback]
+    []
   );
 
   const stop = useCallback(() => {
-    stopPlayback();
-
     if (!replRef.current) {
       setIsPlaying(false);
       return;
@@ -106,7 +86,7 @@ export const useStrudelEngine = () => {
     } finally {
       setIsPlaying(false);
     }
-  }, [stopPlayback]);
+  }, []);
 
   return {
     isPlaying,
