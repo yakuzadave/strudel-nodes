@@ -28,25 +28,20 @@ export const useStrudelEngine = () => {
     initStrudel();
   }, []);
 
-  const evaluatePattern = useCallback(async (code: string) => {
-    if (!replRef.current) {
-      throw new Error('Strudel not initialized');
-    }
+  const evaluatePattern = useCallback(
+    async (code: string, options?: { markPlaying?: boolean }) => {
+      if (!replRef.current) {
+        throw new Error('Strudel not initialized');
+      }
 
-    const result = await (replRef.current as { evaluate: (code: string) => Promise<unknown> }).evaluate(code);
-    return result;
-  }, []);
-
-  const play = useCallback(async () => {
-    if (!replRef.current) return;
-    
-    try {
-      await (replRef.current as { scheduler: { start: () => Promise<void> } }).scheduler.start();
-      setIsPlaying(true);
-    } catch (error) {
-      console.error('Failed to play:', error);
-    }
-  }, []);
+      const result = await (replRef.current as { evaluate: (code: string) => Promise<unknown> }).evaluate(code);
+      if (options?.markPlaying ?? true) {
+        setIsPlaying(true);
+      }
+      return result;
+    },
+    []
+  );
 
   const stop = useCallback(() => {
     if (!replRef.current) return;
@@ -62,7 +57,6 @@ export const useStrudelEngine = () => {
   return {
     isPlaying,
     isLoading,
-    play,
     stop,
     evaluatePattern,
   };
