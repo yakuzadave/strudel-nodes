@@ -170,7 +170,7 @@ body {
   text-align: left;
   border: 1px solid rgba(255, 255, 255, 0.15);
   background: rgba(255, 255, 255, 0.03);
-  color: inherit;
+  color: var(--text-primary);
   cursor: pointer;
   display: flex;
   flex-direction: column;
