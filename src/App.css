@@ -277,7 +277,7 @@ body {
 
 .node-type {
   font-size: 0.7rem;
-  letter-spacing: 0.3rem;
+  letter-spacing: 0.1rem;
   color: var(--text-secondary);
 }
 
