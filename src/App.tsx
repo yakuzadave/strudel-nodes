@@ -24,13 +24,14 @@ import { useStrudelEngine } from './hooks/useStrudelEngine';
 import type { NodeData, PatchData } from './types';
 import { SequencerContext } from './SequencerContext';
 import { createStaleRequestGuard } from './utils/staleRequestGuard';
+import { compileStrudelPatch } from './utils/strudelGraph';
 
 function App() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<NodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [darkMode, setDarkMode] = useState(true);
   const [snapToGrid, setSnapToGrid] = useState(true);
-  const { isPlaying, isLoading, play, stop, evaluatePattern } = useStrudelEngine();
+  const { isPlaying, isLoading, stop, evaluatePattern } = useStrudelEngine();
 
   const previewGuardRef = useRef(createStaleRequestGuard());
   const activePreviewRef = useRef<{ play?: () => void; stop?: () => void } | null>(null);
@@ -71,10 +72,13 @@ function App() {
     };
   }, [stopAllPatterns]);
 
+  const compiledPatch = useMemo(() => compileStrudelPatch(nodes, edges), [nodes, edges]);
+  const compiledExpressions = compiledPatch.expressions;
+  const compiledPatchCode = compiledPatch.patchCode;
   const previewNode = useCallback(
     async (nodeId: string) => {
       const node = nodes.find((n) => n.id === nodeId);
-      const code = node?.data?.code;
+      const code = compiledExpressions.get(nodeId) ?? node?.data?.code;
       if (!code) {
         return;
       }
@@ -136,13 +140,20 @@ function App() {
         console.error('Failed to preview node:', error);
       }
     },
-    [nodes, evaluatePattern, stopActivePreview, stopPreviewTimeout]
+    [nodes, evaluatePattern, stopActivePreview, stopPreviewTimeout, compiledExpressions]
   );
 
   const handlePlay = useCallback(() => {
     stopAllPatterns();
-    void play();
-  }, [play, stopAllPatterns]);
+    const code = compiledPatchCode;
+    if (!code) {
+      console.warn('No playable pattern found in the current patch.');
+      return;
+    }
+    void evaluatePattern(code).catch((error) => {
+      console.error('Failed to evaluate patch:', error);
+    });
+  }, [evaluatePattern, compiledPatchCode, stopAllPatterns]);
 
   const handleStop = useCallback(() => {
     stopAllPatterns();
@@ -171,6 +182,12 @@ function App() {
   const addNode = useCallback(
     (type: 'pattern' | 'transform' | 'fx' | 'output') => {
       const id = `${type}-${Date.now()}`;
+      const defaultCodeMap: Record<'pattern' | 'transform' | 'fx' | 'output', string> = {
+        pattern: 's("bd sd")',
+        transform: '.fast(2)',
+        fx: '.lpf(1000)',
+        output: '',
+      };
       const newNode: Node<NodeData> = {
         id,
         type,
@@ -180,7 +197,7 @@ function App() {
         },
         data: {
           label: `${type.charAt(0).toUpperCase() + type.slice(1)} ${nodes.length + 1}`,
-          code: type === 'pattern' ? 's("bd sd")' : type === 'transform' ? '.fast(2)' : '.lpf(1000)',
+          code: defaultCodeMap[type],
           volume: type === 'output' ? 0.8 : undefined,
           pan: type === 'output' ? 0 : undefined,
           type,

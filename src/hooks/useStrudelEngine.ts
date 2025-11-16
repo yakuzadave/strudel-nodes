@@ -34,18 +34,8 @@ export const useStrudelEngine = () => {
     }
 
     const result = await (replRef.current as { evaluate: (code: string) => Promise<unknown> }).evaluate(code);
+    setIsPlaying(true);
     return result;
-  }, []);
-
-  const play = useCallback(async () => {
-    if (!replRef.current) return;
-    
-    try {
-      await (replRef.current as { scheduler: { start: () => Promise<void> } }).scheduler.start();
-      setIsPlaying(true);
-    } catch (error) {
-      console.error('Failed to play:', error);
-    }
   }, []);
 
   const stop = useCallback(() => {
@@ -62,7 +52,6 @@ export const useStrudelEngine = () => {
   return {
     isPlaying,
     isLoading,
-    play,
     stop,
     evaluatePattern,
   };
