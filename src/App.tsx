@@ -88,7 +88,7 @@ function App() {
       stopActivePreview();
 
       try {
-        const result = await evaluatePattern(code, { markPlaying: false });
+        const result = await evaluatePattern(code, { markPlaying: false, autoPlay: false });
 
         if (isStaleRequest()) {
           if (result && typeof result === 'object' && 'stop' in result && typeof result.stop === 'function') {
