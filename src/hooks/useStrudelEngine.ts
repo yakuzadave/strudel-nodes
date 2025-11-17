@@ -1,25 +1,59 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-// @ts-expect-error - Strudel doesn't have type definitions
 import { repl } from '@strudel/core';
-// @ts-expect-error - Strudel doesn't have type definitions
-import { getAudioContext, initAudioOnFirstClick, webaudioOutput } from '@strudel/webaudio';
+import {
+  getAudioContext,
+  initAudioOnFirstClick,
+  registerSynthSounds,
+  samples,
+  webaudioOutput,
+} from '@strudel/webaudio';
+
+const DEFAULT_SAMPLE_MAP = 'github:tidalcycles/dirt-samples';
+
+type StrudelRepl = {
+  evaluate: (code: string) => Promise<unknown>;
+  scheduler?: {
+    stop?: () => void;
+  };
+};
 
 export const useStrudelEngine = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const replRef = useRef<unknown>(null);
+  const replRef = useRef<StrudelRepl | null>(null);
 
   useEffect(() => {
     const initStrudel = async () => {
       try {
-        await initAudioOnFirstClick();
+        // Prepare audio context as soon as the user interacts with the page.
+        initAudioOnFirstClick().catch((error: unknown) => {
+          console.error('Failed to queue Strudel audio init on first click:', error);
+        });
+
         const strudelRepl = repl({
           defaultOutput: webaudioOutput,
           getTime: () => getAudioContext().currentTime,
         });
         replRef.current = strudelRepl;
+
+        const results = await Promise.allSettled([
+          samples(DEFAULT_SAMPLE_MAP).catch((error) => {
+            console.error('Failed to load default Strudel samples:', error);
+          }),
+          registerSynthSounds().catch((error) => {
+            console.error('Failed to register Strudel synth sounds:', error);
+          }),
+        ]);
+        const rejected = results.filter(r => r.status === 'rejected');
+        if (rejected.length > 0) {
+          rejected.forEach((r, i) => {
+            console.error(`Strudel initialization promise ${i} failed:`, r.reason);
+          });
+          // Optionally, you could throw here to trigger the outer catch block:
+          // throw new Error('One or more Strudel initialization steps failed');
+        }
         setIsLoading(false);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Failed to initialize Strudel:', error);
         setIsLoading(false);
       }
@@ -34,7 +68,7 @@ export const useStrudelEngine = () => {
         throw new Error('Strudel not initialized');
       }
 
-      const result = await (replRef.current as { evaluate: (code: string) => Promise<unknown> }).evaluate(code);
+      const result = await replRef.current.evaluate(code);
       if (options?.markPlaying ?? true) {
         setIsPlaying(true);
       }
@@ -44,13 +78,17 @@ export const useStrudelEngine = () => {
   );
 
   const stop = useCallback(() => {
-    if (!replRef.current) return;
-    
-    try {
-      (replRef.current as { scheduler: { stop: () => void } }).scheduler.stop();
+    if (!replRef.current) {
       setIsPlaying(false);
-    } catch (error) {
-      console.error('Failed to stop:', error);
+      return;
+    }
+
+    try {
+      replRef.current.scheduler?.stop?.();
+    } catch (error: unknown) {
+      console.error('Failed to stop Strudel scheduler:', error);
+    } finally {
+      setIsPlaying(false);
     }
   }, []);
 
