@@ -36,16 +36,22 @@ export const useStrudelEngine = () => {
         });
         replRef.current = strudelRepl;
 
-        await Promise.allSettled([
-          samples(DEFAULT_SAMPLE_MAP).catch((error: unknown) => {
+        const results = await Promise.allSettled([
+          samples(DEFAULT_SAMPLE_MAP).catch((error) => {
             console.error('Failed to load default Strudel samples:', error);
-            throw error;
           }),
-          registerSynthSounds().catch((error: unknown) => {
+          registerSynthSounds().catch((error) => {
             console.error('Failed to register Strudel synth sounds:', error);
-            throw error;
           }),
         ]);
+        const rejected = results.filter(r => r.status === 'rejected');
+        if (rejected.length > 0) {
+          rejected.forEach((r, i) => {
+            console.error(`Strudel initialization promise ${i} failed:`, r.reason);
+          });
+          // Optionally, you could throw here to trigger the outer catch block:
+          // throw new Error('One or more Strudel initialization steps failed');
+        }
         setIsLoading(false);
       } catch (error: unknown) {
         console.error('Failed to initialize Strudel:', error);
