@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-// @ts-expect-error - Strudel doesn't have type definitions
 import { repl } from '@strudel/core';
-// @ts-expect-error - Strudel doesn't have type definitions
 import {
   getAudioContext,
   initAudioOnFirstClick,
@@ -28,7 +26,7 @@ export const useStrudelEngine = () => {
     const initStrudel = async () => {
       try {
         // Prepare audio context as soon as the user interacts with the page.
-        initAudioOnFirstClick().catch((error) => {
+        initAudioOnFirstClick().catch((error: unknown) => {
           console.error('Failed to queue Strudel audio init on first click:', error);
         });
 
@@ -39,17 +37,17 @@ export const useStrudelEngine = () => {
         replRef.current = strudelRepl;
 
         await Promise.allSettled([
-          samples(DEFAULT_SAMPLE_MAP).catch((error) => {
+          samples(DEFAULT_SAMPLE_MAP).catch((error: unknown) => {
             console.error('Failed to load default Strudel samples:', error);
             throw error;
           }),
-          registerSynthSounds().catch((error) => {
+          registerSynthSounds().catch((error: unknown) => {
             console.error('Failed to register Strudel synth sounds:', error);
             throw error;
           }),
         ]);
         setIsLoading(false);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Failed to initialize Strudel:', error);
         setIsLoading(false);
       }
@@ -81,7 +79,7 @@ export const useStrudelEngine = () => {
 
     try {
       replRef.current.scheduler?.stop?.();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Failed to stop Strudel scheduler:', error);
     } finally {
       setIsPlaying(false);

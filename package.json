@@ -12,8 +12,8 @@
   },
   "dependencies": {
     "@strudel/core": "^1.2.5",
-    "@strudel/tonal": "^1.2.5",
     "@strudel/mini": "^1.2.5",
+    "@strudel/tonal": "^1.2.5",
     "@strudel/webaudio": "^1.2.5",
     "@strudel/xen": "^1.2.5",
     "@xyflow/react": "^12.8.6",
@@ -22,7 +22,9 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
+    "@strudel/transpiler": "^1.2.5",
     "@testing-library/react": "^16.3.0",
+    "@types/node": "^24.10.1",
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.3",
@@ -31,7 +33,6 @@
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.4.0",
     "jsdom": "^27.2.0",
-    "@strudel/transpiler": "^1.2.5",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.44.0",
     "vite": "^7.1.7",

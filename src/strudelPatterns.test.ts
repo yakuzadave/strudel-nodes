@@ -78,8 +78,8 @@ const midin = () => () => strudel.ref(() => 0);
 const sysex = () => {};
 
 ['osc','csound','tone','webdirt','pianoroll','speak','wave','filter','adsr','webaudio','soundfont','tune','midi','_scope','_spiral','_pitchwheel','_pianoroll','_spectrum','markcss','p'].forEach((method) => {
-  // @ts-expect-error - augmenting runtime Pattern prototype for testing
-  strudel.Pattern.prototype[method] = function patternPassthrough() {
+  const patternPrototype = (strudel.Pattern as unknown as { prototype: Record<string, unknown> }).prototype;
+  patternPrototype[method] = function patternPassthrough() {
     return this;
   };
 });
@@ -226,7 +226,12 @@ const PATTERN_DIGESTS: Record<string, string> = {
 
 const queryCode = async (code: string, cycles = 1) => {
   const { pattern } = await strudel.evaluate(code, transpiler);
-  const haps = pattern.sortHapsByPart().queryArc(0, cycles);
+  const runtimePattern = pattern as {
+    sortHapsByPart: () => {
+      queryArc: (from: number, to: number) => { show: (includePart: boolean) => string }[];
+    };
+  };
+  const haps = runtimePattern.sortHapsByPart().queryArc(0, cycles);
   return haps.map((hap: { show: (includePart: boolean) => string }) => hap.show(true));
 };
 
