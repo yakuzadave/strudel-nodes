@@ -77,7 +77,28 @@ const loadcsound = noop;
 const midin = () => () => strudel.ref(() => 0);
 const sysex = () => {};
 
-['osc','csound','tone','webdirt','pianoroll','speak','wave','filter','adsr','webaudio','soundfont','tune','midi','_scope','_spiral','_pitchwheel','_pianoroll','_spectrum','markcss','p'].forEach((method) => {
+[
+  'osc',
+  'csound',
+  'tone',
+  'webdirt',
+  'pianoroll',
+  'speak',
+  'wave',
+  'filter',
+  'adsr',
+  'webaudio',
+  'soundfont',
+  'tune',
+  'midi',
+  '_scope',
+  '_spiral',
+  '_pitchwheel',
+  '_pianoroll',
+  '_spectrum',
+  'markcss',
+  'p',
+].forEach((method) => {
   const patternPrototype = (strudel.Pattern as unknown as { prototype: Record<string, unknown> }).prototype;
   patternPrototype[method] = function patternPassthrough() {
     return this;
