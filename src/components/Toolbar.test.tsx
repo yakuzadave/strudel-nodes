@@ -15,10 +15,12 @@ function createProps(overrides: Partial<ToolbarProps> = {}): ToolbarProps {
     isLoading: false,
     darkMode: false,
     snapToGrid: true,
+    liveEnabled: false,
     onPlay: vi.fn(),
     onStop: vi.fn(),
     onToggleDarkMode: vi.fn(),
     onToggleSnapToGrid: vi.fn(),
+    onToggleLiveMode: vi.fn(),
     onSave: vi.fn(),
     onLoad: vi.fn(),
     onClear: vi.fn(),
@@ -61,12 +63,14 @@ describe('Toolbar', () => {
     const props = createProps();
     render(<Toolbar {...props} />);
 
+    fireEvent.click(screen.getByLabelText('Live Mode'));
     fireEvent.click(screen.getByLabelText('Snap to Grid'));
     fireEvent.click(screen.getByLabelText('Dark Mode'));
     fireEvent.click(screen.getByRole('button', { name: /Save Patch/ }));
     fireEvent.click(screen.getByRole('button', { name: /Load Patch/ }));
     fireEvent.click(screen.getByRole('button', { name: /Clear/ }));
 
+    expect(props.onToggleLiveMode).toHaveBeenCalledTimes(1);
     expect(props.onToggleSnapToGrid).toHaveBeenCalledTimes(1);
     expect(props.onToggleDarkMode).toHaveBeenCalledTimes(1);
     expect(props.onSave).toHaveBeenCalledTimes(1);
