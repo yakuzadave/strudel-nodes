@@ -424,3 +424,24 @@ body {
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
 }
+
+.run-queue-log {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  width: min(360px, 90vw);
+  max-height: 220px;
+  overflow: auto;
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--panel-border);
+  background: var(--panel-bg);
+  backdrop-filter: blur(10px);
+  font-size: 0.8rem;
+  z-index: 4;
+}
+
+.run-queue-log ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+}

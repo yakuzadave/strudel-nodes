@@ -10,6 +10,8 @@ interface ToolbarProps {
   onSave: () => void;
   onLoad: () => void;
   onClear: () => void;
+  liveEnabled: boolean;
+  onToggleLiveMode: () => void;
 }
 
 export function Toolbar({
@@ -24,6 +26,8 @@ export function Toolbar({
   onSave,
   onLoad,
   onClear,
+  liveEnabled,
+  onToggleLiveMode,
 }: ToolbarProps) {
   return (
     <div className="toolbar">
@@ -54,6 +58,14 @@ export function Toolbar({
       </div>
 
       <div className="toolbar-section">
+        <label className="toggle">
+          <input
+            type="checkbox"
+            checked={liveEnabled}
+            onChange={onToggleLiveMode}
+          />
+          <span>Live Mode</span>
+        </label>
         <label className="toggle">
           <input
             type="checkbox"

@@ -25,18 +25,39 @@ import type { NodeData, PatchData } from './types';
 import { SequencerContext } from './SequencerContext';
 import { createStaleRequestGuard } from './utils/staleRequestGuard';
 import { compileStrudelPatch } from './utils/strudelGraph';
+import { createRunRequest, ExecutionController, type RunResult } from './execution/executionController';
 
 function App() {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<NodeData>>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [darkMode, setDarkMode] = useState(true);
   const [snapToGrid, setSnapToGrid] = useState(true);
+  const [liveEnabled, setLiveEnabled] = useState(false);
+  const [runLog, setRunLog] = useState<RunResult[]>([]);
   const { isPlaying, isLoading, stop, evaluatePattern } = useStrudelEngine();
 
   const previewGuardRef = useRef(createStaleRequestGuard());
   const activePreviewRef = useRef<{ play?: () => void; stop?: () => void } | null>(null);
   const previewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [playingNodes, setPlayingNodes] = useState<Set<string>>(new Set());
+
+  const executionControllerRef = useRef<ExecutionController | null>(null);
+
+  useEffect(() => {
+    executionControllerRef.current = new ExecutionController({
+      evaluate: (code) => evaluatePattern(code, { markPlaying: true }),
+      stop,
+      onRunResult: (result) => {
+        setRunLog((current) => [...current.slice(-9), result]);
+      },
+    });
+
+    return () => {
+      executionControllerRef.current?.cancelCurrent();
+      executionControllerRef.current?.clearQueue();
+      executionControllerRef.current = null;
+    };
+  }, [evaluatePattern, stop]);
 
   const stopPreviewTimeout = useCallback(() => {
     if (previewTimeoutRef.current !== null) {
@@ -75,6 +96,36 @@ function App() {
   const compiledPatch = useMemo(() => compileStrudelPatch(nodes, edges), [nodes, edges]);
   const compiledExpressions = compiledPatch.expressions;
   const compiledPatchCode = compiledPatch.patchCode;
+
+  const settingsHash = useMemo(() => {
+    return JSON.stringify({
+      nodes: nodes.map((node) => ({ id: node.id, data: node.data, position: node.position, type: node.type })),
+      edges: edges.map((edge) => ({ id: edge.id, source: edge.source, target: edge.target })),
+    });
+  }, [nodes, edges]);
+
+  useEffect(() => {
+    if (!liveEnabled || !isPlaying || !compiledPatchCode) {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      const controller = executionControllerRef.current;
+      if (!controller) {
+        return;
+      }
+
+      controller.replaceLatest(
+        createRunRequest(compiledPatchCode, 'live', {
+          label: 'Live hot reload',
+          settingsHash,
+        })
+      );
+    }, 250);
+
+    return () => clearTimeout(timeout);
+  }, [liveEnabled, isPlaying, compiledPatchCode, settingsHash]);
+
   const previewNode = useCallback(
     async (nodeId: string) => {
       const node = nodes.find((n) => n.id === nodeId);
@@ -150,13 +201,19 @@ function App() {
       console.warn('No playable pattern found in the current patch.');
       return;
     }
-    void evaluatePattern(code).catch((error) => {
-      console.error('Failed to evaluate patch:', error);
-    });
-  }, [evaluatePattern, compiledPatchCode, stopAllPatterns]);
+
+    executionControllerRef.current?.enqueue(
+      createRunRequest(code, 'batch', {
+        label: 'Play patch',
+        settingsHash,
+      })
+    );
+  }, [compiledPatchCode, settingsHash, stopAllPatterns]);
 
   const handleStop = useCallback(() => {
     stopAllPatterns();
+    executionControllerRef.current?.cancelCurrent();
+    executionControllerRef.current?.clearQueue();
     stop();
   }, [stop, stopAllPatterns]);
 
@@ -272,10 +329,12 @@ function App() {
         isLoading={isLoading}
         darkMode={darkMode}
         snapToGrid={snapToGrid}
+        liveEnabled={liveEnabled}
         onPlay={handlePlay}
         onStop={handleStop}
         onToggleDarkMode={() => setDarkMode(!darkMode)}
         onToggleSnapToGrid={() => setSnapToGrid(!snapToGrid)}
+        onToggleLiveMode={() => setLiveEnabled(!liveEnabled)}
         onSave={savePatch}
         onLoad={loadPatch}
         onClear={clearCanvas}
@@ -305,6 +364,16 @@ function App() {
             </ReactFlow>
           </SequencerContext.Provider>
         </div>
+      </div>
+      <div className="run-queue-log" aria-live="polite">
+        <strong>Run queue log</strong>
+        <ul>
+          {runLog.map((result) => (
+            <li key={`${result.id}-${result.finishedAt}`}>
+              {result.mode} · {result.status} · {result.label ?? result.id}
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
