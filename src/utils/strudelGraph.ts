@@ -5,6 +5,7 @@ export interface CompiledStrudelPatch {
   expressions: Map<string, string>;
   outputExpressions: string[];
   patchCode: string | null;
+  playbackHash: string;
 }
 
 interface NodeLookup {
@@ -153,9 +154,15 @@ export const compileStrudelPatch = (
     patchCode = standalonePatterns.length ? combineInputs(standalonePatterns) : null;
   }
 
+  const playbackHash = JSON.stringify({
+    outputExpressions,
+    patchCode,
+  });
+
   return {
     expressions,
     outputExpressions,
     patchCode,
+    playbackHash,
   } satisfies CompiledStrudelPatch;
 };
