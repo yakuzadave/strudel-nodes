@@ -96,13 +96,7 @@ function App() {
   const compiledPatch = useMemo(() => compileStrudelPatch(nodes, edges), [nodes, edges]);
   const compiledExpressions = compiledPatch.expressions;
   const compiledPatchCode = compiledPatch.patchCode;
-
-  const settingsHash = useMemo(() => {
-    return JSON.stringify({
-      nodes: nodes.map((node) => ({ id: node.id, data: node.data, position: node.position, type: node.type })),
-      edges: edges.map((edge) => ({ id: edge.id, source: edge.source, target: edge.target })),
-    });
-  }, [nodes, edges]);
+  const playbackHash = compiledPatch.playbackHash;
 
   useEffect(() => {
     if (!liveEnabled || !isPlaying || !compiledPatchCode) {
@@ -118,13 +112,13 @@ function App() {
       controller.replaceLatest(
         createRunRequest(compiledPatchCode, 'live', {
           label: 'Live hot reload',
-          settingsHash,
+          settingsHash: playbackHash,
         })
       );
     }, 250);
 
     return () => clearTimeout(timeout);
-  }, [liveEnabled, isPlaying, compiledPatchCode, settingsHash]);
+  }, [liveEnabled, isPlaying, compiledPatchCode, playbackHash]);
 
   const previewNode = useCallback(
     async (nodeId: string) => {
@@ -203,12 +197,12 @@ function App() {
     }
 
     executionControllerRef.current?.enqueue(
-      createRunRequest(code, 'batch', {
-        label: 'Play patch',
-        settingsHash,
-      })
-    );
-  }, [compiledPatchCode, settingsHash, stopAllPatterns]);
+        createRunRequest(code, 'batch', {
+          label: 'Play patch',
+          settingsHash: playbackHash,
+        })
+      );
+  }, [compiledPatchCode, playbackHash, stopAllPatterns]);
 
   const handleStop = useCallback(() => {
     stopAllPatterns();

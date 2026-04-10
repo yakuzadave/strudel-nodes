@@ -19,6 +19,7 @@ describe('compileStrudelPatch', () => {
   it('returns null patch code when no playable nodes exist', () => {
     const result = compileStrudelPatch([], []);
     expect(result.patchCode).toBeNull();
+    expect(result.playbackHash).toBe(JSON.stringify({ outputExpressions: [], patchCode: null }));
     expect(result.expressions.size).toBe(0);
   });
 
@@ -87,5 +88,69 @@ describe('compileStrudelPatch', () => {
     expect(outputExpression).toContain('.gain(0.6)');
     expect(outputExpression).toContain('.pan(-0.25)');
     expect(result.patchCode).toContain('.lpf(1000)');
+  });
+
+  it('keeps the playback hash stable for layout-only node changes', () => {
+    const nodes: Node<NodeData>[] = [
+      createNode({
+        id: 'pattern',
+        position: { x: 10, y: 20 },
+        data: { type: 'pattern', code: 's("bd")', label: 'Pattern' },
+      }),
+      createNode({
+        id: 'output',
+        position: { x: 100, y: 200 },
+        data: { type: 'output', code: '', label: 'Out' },
+      }),
+    ];
+    const movedNodes: Node<NodeData>[] = nodes.map((node) => ({
+      ...node,
+      position: {
+        x: node.position.x + 250,
+        y: node.position.y + 150,
+      },
+    }));
+    const edges = [createEdge('pattern', 'output')];
+
+    const initialResult = compileStrudelPatch(nodes, edges);
+    const movedResult = compileStrudelPatch(movedNodes, edges);
+
+    expect(movedResult.patchCode).toBe(initialResult.patchCode);
+    expect(movedResult.playbackHash).toBe(initialResult.playbackHash);
+  });
+
+  it('updates the playback hash when the playable patch changes', () => {
+    const edges = [createEdge('pattern', 'output')];
+
+    const firstResult = compileStrudelPatch(
+      [
+        createNode({
+          id: 'pattern',
+          data: { type: 'pattern', code: 's("bd")', label: 'Pattern' },
+        }),
+        createNode({
+          id: 'output',
+          data: { type: 'output', code: '', label: 'Out' },
+        }),
+      ],
+      edges
+    );
+
+    const secondResult = compileStrudelPatch(
+      [
+        createNode({
+          id: 'pattern',
+          data: { type: 'pattern', code: 's("sd")', label: 'Pattern' },
+        }),
+        createNode({
+          id: 'output',
+          data: { type: 'output', code: '', label: 'Out' },
+        }),
+      ],
+      edges
+    );
+
+    expect(secondResult.patchCode).not.toBe(firstResult.patchCode);
+    expect(secondResult.playbackHash).not.toBe(firstResult.playbackHash);
   });
 });
